@@ -12,11 +12,22 @@ use Illuminate\Support\Facades\Cache;
 
 class InboxController extends Controller
 {
-    public function index(GeneratedEmail $generatedEmail, Request $request)
+    public function index(GeneratedEmail $generatedEmail, Request $request, ImapService $imapService)
     {
         // Ensure the user owns this email
         if ($generatedEmail->user_id !== $request->user()->id) {
             abort(403);
+        }
+
+        // Auto-sync IMAP when viewing or reloading inbox (throttled to at most once per 4 seconds)
+        try {
+            $configured = config('imap.username') && config('imap.password') && config('imap.host') !== 'localhost';
+            if ($configured && Cache::add('imap_sync_lock', true, 4)) {
+                $imapService->fetchNewEmails();
+                $imapService->disconnect();
+            }
+        } catch (\Throwable $e) {
+            // Ignore connection errors
         }
 
         $emails = $generatedEmail->receivedEmails()

@@ -1,15 +1,14 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, onMounted, onUnmounted } from 'vue';
-import axios from 'axios';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
     generatedEmail: Object,
     receivedEmails: Object,
 });
 
-const emails = ref(props.receivedEmails.data || []);
+const emails = computed(() => props.receivedEmails?.data || []);
 const loading = ref(false);
 const copiedEmail = ref(false);
 let pollInterval = null;
@@ -25,25 +24,19 @@ function copyToClipboard() {
 
 function checkNewEmails() {
     loading.value = true;
-    axios.get(route('inbox.check', props.generatedEmail.id))
-        .then(response => {
-            emails.value = response.data.emails;
-        })
-        .catch(error => {
-            console.error('Failed to check emails:', error);
-        })
-        .finally(() => {
+    router.reload({
+        only: ['receivedEmails'],
+        preserveScroll: true,
+        onFinish: () => {
             loading.value = false;
-        });
+        },
+    });
 }
 
 function deleteEmail(receivedEmailId) {
     if (confirm('Delete this email?')) {
         router.delete(route('inbox.destroy', [props.generatedEmail.id, receivedEmailId]), {
             preserveScroll: true,
-            onSuccess: () => {
-                emails.value = emails.value.filter(e => e.id !== receivedEmailId);
-            },
         });
     }
 }
