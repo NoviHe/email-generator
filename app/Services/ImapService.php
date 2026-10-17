@@ -77,11 +77,18 @@ class ImapService
         $fetched = [];
 
         try {
-            // Search for unseen emails
-            $emails = @imap_search($this->connection, 'UNSEEN');
+            // Search for unread emails first, and also check all recent emails
+            $unseen = @imap_search($this->connection, 'UNSEEN') ?: [];
+            $all = @imap_search($this->connection, 'ALL') ?: [];
+            $emails = array_values(array_unique(array_merge($unseen, $all)));
 
-            if (!$emails) {
+            if (empty($emails)) {
                 return [];
+            }
+
+            // Check latest 50 messages
+            if (count($emails) > 50) {
+                $emails = array_slice($emails, -50);
             }
 
             // Get all active generated email addresses
@@ -94,6 +101,12 @@ class ImapService
                 $structure = @imap_fetchstructure($this->connection, $emailNumber);
 
                 if (!$header) {
+                    continue;
+                }
+
+                // Get message ID early to skip if already fetched
+                $messageId = isset($header->message_id) ? $header->message_id : null;
+                if ($messageId && ReceivedEmail::where('message_id', $messageId)->exists()) {
                     continue;
                 }
 
@@ -123,19 +136,12 @@ class ImapService
                 }
 
                 $toAddresses = array_unique($toAddresses);
+                $isMatched = false;
 
                 // Match with active generated emails
                 foreach ($toAddresses as $toAddress) {
                     if (isset($activeEmails[$toAddress])) {
                         $generatedEmailId = $activeEmails[$toAddress];
-
-                        // Get message ID
-                        $messageId = isset($header->message_id) ? $header->message_id : null;
-
-                        // Skip if already fetched
-                        if ($messageId && ReceivedEmail::where('message_id', $messageId)->exists()) {
-                            continue;
-                        }
 
                         // Get body
                         $body = $this->getBody($emailNumber, $structure);
@@ -167,14 +173,18 @@ class ImapService
                         ]);
 
                         $fetched[] = $received;
+                        $isMatched = true;
+                        break;
                     }
                 }
 
-                // If delete_after_fetch is enabled, delete from cPanel mailbox to keep quota 0%
-                if (config('imap.delete_after_fetch', true)) {
-                    @imap_delete($this->connection, (int) $emailNumber);
-                } else {
-                    @imap_setflag_full($this->connection, (string) $emailNumber, '\\Seen');
+                if ($isMatched) {
+                    // If delete_after_fetch is enabled, delete from cPanel mailbox to keep quota 0%
+                    if (config('imap.delete_after_fetch', true)) {
+                        @imap_delete($this->connection, (int) $emailNumber);
+                    } else {
+                        @imap_setflag_full($this->connection, (string) $emailNumber, '\\Seen');
+                    }
                 }
             }
         } catch (\Exception $e) {

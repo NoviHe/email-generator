@@ -53,6 +53,13 @@ function copyBody() {
 }
 
 function extractCode() {
+    // Check subject line first (Facebook, Google, etc. often put code in subject)
+    const subject = props.email.subject || '';
+    const subjectMatch = subject.match(/\b(\d{4,8})\b/);
+    if (subjectMatch) {
+        return subjectMatch[1];
+    }
+
     const text = props.email.body_text || props.email.body_html?.replace(/<[^>]*>/g, '') || '';
     // Try to find verification codes (4-8 digit numbers or alphanumeric codes)
     const patterns = [
