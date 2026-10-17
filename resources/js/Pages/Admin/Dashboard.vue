@@ -357,8 +357,13 @@ function viewEmailModal(log) {
                                         <td class="py-3 px-4 text-xs text-gray-400">
                                             {{ formatDate(email.created_at) }}
                                         </td>
-                                        <td class="py-3 px-4 text-xs text-gray-400">
-                                            {{ formatDate(email.expires_at) }}
+                                        <td class="py-3 px-4 text-xs">
+                                            <span v-if="email.expires_at" class="text-gray-400">
+                                                {{ formatDate(email.expires_at) }}
+                                            </span>
+                                            <span v-else class="inline-flex items-center text-emerald-700 font-semibold text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                                ♾️ Permanent
+                                            </span>
                                         </td>
                                         <td class="py-3 px-4 text-right">
                                             <button

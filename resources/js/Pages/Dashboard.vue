@@ -79,7 +79,7 @@ function formatDate(date) {
 }
 
 function timeUntilExpiry(expiresAt) {
-    if (!expiresAt) return 'Never';
+    if (!expiresAt) return 'Permanent';
     const now = new Date();
     const expiry = new Date(expiresAt);
     const diff = expiry - now;
@@ -181,7 +181,10 @@ function timeUntilExpiry(expiresAt) {
                                 </div>
                                 <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
                                     <span>📅 {{ formatDate(email.created_at) }}</span>
-                                    <span :class="{
+                                    <span v-if="!email.expires_at" class="inline-flex items-center text-emerald-600 font-semibold text-xs bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                        ♾️ Permanent
+                                    </span>
+                                    <span v-else :class="{
                                         'text-orange-500': timeUntilExpiry(email.expires_at) !== 'Expired',
                                         'text-red-500': timeUntilExpiry(email.expires_at) === 'Expired',
                                     }">⏱ {{ timeUntilExpiry(email.expires_at) }}</span>

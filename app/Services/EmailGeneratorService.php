@@ -32,12 +32,16 @@ class EmailGeneratorService
             $emailAddress = $localPart . '@' . $domain;
         }
 
+        $expiresAt = ($expireMinutes && (int) $expireMinutes > 0)
+            ? now()->addMinutes((int) $expireMinutes)
+            : null;
+
         return GeneratedEmail::create([
             'user_id' => $user->id,
             'email_address' => $emailAddress,
             'local_part' => $localPart,
             'is_active' => true,
-            'expires_at' => now()->addMinutes($expireMinutes),
+            'expires_at' => $expiresAt,
         ]);
     }
 
@@ -61,6 +65,7 @@ class EmailGeneratorService
     public function cleanupExpired(): int
     {
         $expired = GeneratedEmail::where('is_active', true)
+            ->whereNotNull('expires_at')
             ->where('expires_at', '<=', now())
             ->get();
 
